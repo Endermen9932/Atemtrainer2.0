@@ -1,2 +1,2 @@
 # Atemtrainer2.0
-An advanced version of "Atemtrainer" for easier use.
+An advanced version of "Atemtrainer" for easier use, written in c.
