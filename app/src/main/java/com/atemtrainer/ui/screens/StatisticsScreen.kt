@@ -1,5 +1,6 @@
 package com.atemtrainer.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,14 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.atemtrainer.data.database.SessionEntity
-import com.patrykandpatrick.vico.compose.cartesian.*
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -30,15 +30,6 @@ fun StatisticsScreen(
     onBack: () -> Unit,
 ) {
     val completed = remember(sessions) { sessions.filter { it.completed }.sortedBy { it.date } }
-
-    val modelProducer = remember { CartesianChartModelProducer() }
-    LaunchedEffect(completed) {
-        if (completed.isNotEmpty()) {
-            modelProducer.runTransaction {
-                lineSeries { series(completed.map { it.targetSeconds }) }
-            }
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -53,7 +44,10 @@ fun StatisticsScreen(
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
@@ -67,37 +61,29 @@ fun StatisticsScreen(
                         modifier = Modifier.weight(1f),
                         title = "Pers. Rekord",
                         value = maxDuration?.let { formatDuration(it) } ?: "-",
-                        icon = true
+                        showTrophy = true
                     )
                 }
             }
 
             if (completed.size >= 2) {
                 item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text("Fortschritt", style = MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.height(12.dp))
-                            CartesianChartHost(
-                                chart = rememberCartesianChart(
-                                    rememberLineCartesianLayer(),
-                                    startAxis = rememberStartAxis(),
-                                    bottomAxis = rememberBottomAxis(),
-                                ),
-                                modelProducer = modelProducer,
-                                modifier = Modifier.fillMaxWidth().height(220.dp)
-                            )
-                        }
-                    }
+                    ProgressChartCard(sessions = completed)
                 }
             } else if (completed.size == 1) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Box(modifier = Modifier.padding(24.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .padding(24.dp)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
                                 "Mach noch mindestens eine weitere Session, um deinen Fortschritt als Grafik zu sehen.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -126,11 +112,81 @@ fun StatisticsScreen(
 }
 
 @Composable
-private fun StatCard(modifier: Modifier = Modifier, title: String, value: String, icon: Boolean = false) {
+private fun ProgressChartCard(sessions: List<SessionEntity>) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val surfaceVariantColor = MaterialTheme.colorScheme.surfaceVariant
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Fortschritt", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(12.dp))
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+            ) {
+                val values = sessions.map { it.targetSeconds.toFloat() }
+                val minVal = values.min()
+                val maxVal = values.max()
+                val range = (maxVal - minVal).coerceAtLeast(1f)
+                val w = size.width
+                val h = size.height
+                val padding = 16f
+
+                // Grid lines
+                repeat(4) { i ->
+                    val y = padding + (h - 2 * padding) * i / 3f
+                    drawLine(
+                        color = surfaceVariantColor,
+                        start = Offset(padding, y),
+                        end = Offset(w - padding, y),
+                        strokeWidth = 1f
+                    )
+                }
+
+                // Line path
+                val path = Path()
+                values.forEachIndexed { idx, v ->
+                    val x = padding + (w - 2 * padding) * idx / (values.size - 1).coerceAtLeast(1).toFloat()
+                    val y = h - padding - (v - minVal) / range * (h - 2 * padding)
+                    if (idx == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                drawPath(path, primaryColor, style = Stroke(width = 3f))
+
+                // Dots
+                values.forEachIndexed { idx, v ->
+                    val x = padding + (w - 2 * padding) * idx / (values.size - 1).coerceAtLeast(1).toFloat()
+                    val y = h - padding - (v - minVal) / range * (h - 2 * padding)
+                    drawCircle(primaryColor, radius = 5f, center = Offset(x, y))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    showTrophy: Boolean = false
+) {
     Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            if (icon) Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary)
-            Text(title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (showTrophy) {
+                Icon(
+                    Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            Text(
+                title,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Spacer(Modifier.height(4.dp))
             Text(value, style = MaterialTheme.typography.headlineSmall)
         }
@@ -142,9 +198,15 @@ private fun SessionRow(session: SessionEntity) {
     val date = remember(session.date) {
         Instant.ofEpochMilli(session.date).atZone(ZoneId.systemDefault()).toLocalDate()
     }
-    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

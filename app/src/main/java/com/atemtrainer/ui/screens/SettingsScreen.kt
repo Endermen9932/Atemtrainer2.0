@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -15,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.atemtrainer.viewmodel.MainViewModel
+
+fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier =
+    this.clickable(indication = null, interactionSource = MutableInteractionSource(), onClick = onClick)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,10 +59,17 @@ fun SettingsScreen(
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Daten", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                "Daten",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
             Spacer(Modifier.height(4.dp))
 
             ListItem(
@@ -92,7 +104,12 @@ fun SettingsScreen(
             HorizontalDivider()
 
             ListItem(
-                headlineContent = { Text("Alle Daten löschen", color = MaterialTheme.colorScheme.error) },
+                headlineContent = {
+                    Text(
+                        "Alle Daten löschen",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                },
                 supportingContent = { Text("Sessions und Einstellungen zurücksetzen") },
                 modifier = Modifier.noRippleClickable { showResetDialog = true }
             )
@@ -103,13 +120,14 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Alle Daten löschen?") },
-            text = { Text("Diese Aktion kann nicht rückgängig gemacht werden. Alle Sessions und Einstellungen werden gelöscht.") },
+            text = {
+                Text(
+                    "Diese Aktion kann nicht rückgängig gemacht werden. Alle Sessions und Einstellungen werden gelöscht."
+                )
+            },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        // reset handled via export/delete path; simplified here
-                        showResetDialog = false
-                    },
+                    onClick = { showResetDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
                 ) { Text("Löschen") }
             },
@@ -119,10 +137,3 @@ fun SettingsScreen(
         )
     }
 }
-
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.ui.Modifier as M
-
-fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier =
-    this.clickable(indication = null, interactionSource = MutableInteractionSource(), onClick = onClick)

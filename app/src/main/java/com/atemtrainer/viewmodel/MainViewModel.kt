@@ -15,6 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -27,46 +28,51 @@ data class MainUiState(
     val maxDuration: Int? = null,
 )
 
+private data class PrefsSnapshot(
+    val onboardingDone: Boolean,
+    val baseline: Int,
+    val target: Int,
+    val lastTrainingDate: Long,
+    val increasePromptDate: Long,
+)
+
 class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val db = AppDatabase.getInstance(app)
     private val prefs = UserPreferences(app)
     private val repo = TrainingRepository(db, prefs)
 
-    val uiState: StateFlow<MainUiState> = combine(
+    private val prefsFlow: Flow<PrefsSnapshot> = combine(
         prefs.onboardingDone,
         prefs.baselineSeconds,
         prefs.currentTargetSeconds,
         prefs.lastTrainingDate,
-        prefs.increasePromptDate,
+        prefs.increasePromptDate
+    ) { onboarding, baseline, target, lastTraining, increaseDate ->
+        PrefsSnapshot(onboarding, baseline, target, lastTraining, increaseDate)
+    }
+
+    val uiState: StateFlow<MainUiState> = combine(
+        prefsFlow,
         repo.allSessions,
         repo.maxDuration
-    ) { values ->
-        val onboardingDone = values[0] as Boolean
-        val baseline = values[1] as Int
-        val target = values[2] as Int
-        val lastTraining = values[3] as Long
-        val increasePromptDate = values[4] as Long
-        @Suppress("UNCHECKED_CAST")
-        val sessions = values[5] as List<SessionEntity>
-        val maxDur = values[6] as Int?
-
+    ) { snap, sessions, maxDur ->
         val today = LocalDate.now(ZoneId.systemDefault())
-        val lastTrainingDay = if (lastTraining > 0L)
-            java.time.Instant.ofEpochMilli(lastTraining).atZone(ZoneId.systemDefault()).toLocalDate()
+        val lastTrainingDay = if (snap.lastTrainingDate > 0L)
+            Instant.ofEpochMilli(snap.lastTrainingDate).atZone(ZoneId.systemDefault()).toLocalDate()
         else null
-        val increasePromptDay = if (increasePromptDate > 0L)
-            java.time.Instant.ofEpochMilli(increasePromptDate).atZone(ZoneId.systemDefault()).toLocalDate()
+        val increasePromptDay = if (snap.increasePromptDate > 0L)
+            Instant.ofEpochMilli(snap.increasePromptDate).atZone(ZoneId.systemDefault()).toLocalDate()
         else null
 
-        val showPrompt = onboardingDone &&
+        val showPrompt = snap.onboardingDone &&
                 lastTrainingDay != null &&
                 lastTrainingDay.isBefore(today) &&
                 increasePromptDay != today
 
         MainUiState(
-            onboardingDone = onboardingDone,
-            baselineSeconds = baseline,
-            currentTargetSeconds = target,
+            onboardingDone = snap.onboardingDone,
+            baselineSeconds = snap.baseline,
+            currentTargetSeconds = snap.target,
             showIncreasePrompt = showPrompt,
             sessions = sessions,
             maxDuration = maxDur,
@@ -116,12 +122,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             put("version", 1)
             put("sessions", arr)
         }
-        context.contentResolver.openOutputStream(uri)?.use { it.write(json.toString(2).toByteArray()) }
+        context.contentResolver.openOutputStream(uri)?.use {
+            it.write(json.toString(2).toByteArray())
+        }
     }
 
     fun importData(context: Context, uri: Uri) = viewModelScope.launch {
         try {
-            val text = BufferedReader(InputStreamReader(context.contentResolver.openInputStream(uri))).readText()
+            val text = BufferedReader(
+                InputStreamReader(context.contentResolver.openInputStream(uri))
+            ).readText()
             val json = JSONObject(text)
             val arr = json.getJSONArray("sessions")
             repo.deleteAll()
