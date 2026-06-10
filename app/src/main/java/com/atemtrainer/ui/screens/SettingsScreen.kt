@@ -5,7 +5,6 @@ import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -14,18 +13,9 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.atemtrainer.viewmodel.MainViewModel
-
-fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
-    clickable(
-        indication = null,
-        interactionSource = remember { MutableInteractionSource() },
-        onClick = onClick
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,7 +72,7 @@ fun SettingsScreen(
                 headlineContent = { Text("Daten exportieren") },
                 supportingContent = { Text("Alle Sessions als JSON speichern") },
                 leadingContent = { Icon(Icons.Default.Upload, contentDescription = null) },
-                modifier = Modifier.noRippleClickable {
+                modifier = Modifier.clickable {
                     val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "application/json"
@@ -98,7 +88,7 @@ fun SettingsScreen(
                 headlineContent = { Text("Daten importieren") },
                 supportingContent = { Text("Sessions aus JSON-Datei laden (bestehende Daten werden überschrieben)") },
                 leadingContent = { Icon(Icons.Default.Download, contentDescription = null) },
-                modifier = Modifier.noRippleClickable {
+                modifier = Modifier.clickable {
                     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                         addCategory(Intent.CATEGORY_OPENABLE)
                         type = "application/json"
@@ -117,7 +107,7 @@ fun SettingsScreen(
                     )
                 },
                 supportingContent = { Text("Sessions und Einstellungen zurücksetzen") },
-                modifier = Modifier.noRippleClickable { showResetDialog = true }
+                modifier = Modifier.clickable { showResetDialog = true }
             )
         }
     }
