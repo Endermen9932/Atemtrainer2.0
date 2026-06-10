@@ -14,12 +14,18 @@ import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.atemtrainer.viewmodel.MainViewModel
 
-fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier =
-    this.clickable(indication = null, interactionSource = MutableInteractionSource(), onClick = onClick)
+fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = composed {
+    clickable(
+        indication = null,
+        interactionSource = remember { MutableInteractionSource() },
+        onClick = onClick
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -121,9 +127,7 @@ fun SettingsScreen(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Alle Daten löschen?") },
             text = {
-                Text(
-                    "Diese Aktion kann nicht rückgängig gemacht werden. Alle Sessions und Einstellungen werden gelöscht."
-                )
+                Text("Diese Aktion kann nicht rückgängig gemacht werden. Alle Sessions und Einstellungen werden gelöscht.")
             },
             confirmButton = {
                 TextButton(
