@@ -27,20 +27,22 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.9'
 
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+      - name: Bootstrap Gradle wrapper
+        run: gradle wrapper --gradle-version 8.9 --distribution-type bin
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Determine version
+      - name: Determine version and tag
         id: version
         run: |
           if [ -n "${{ github.event.inputs.version_name }}" ]; then
             VERSION="${{ github.event.inputs.version_name }}"
           else
-            VERSION=$(grep versionName app/build.gradle.kts | sed "s/.*versionName = \"//;s/\".*//")
+            VERSION=$(grep 'versionName' app/build.gradle.kts | sed 's/.*versionName = "//;s/".*//')
           fi
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           TAG="v${VERSION}-${SHORT_SHA}"
@@ -64,10 +66,10 @@ jobs:
             **Debug APK** – signiert mit Android Debug Key.
 
             ### Installation
-            1. APK herunterladen
-            2. Auf Android-Gerät übertragen
-            3. "Unbekannte Quellen" in den Einstellungen erlauben
-            4. APK installieren
+            1. APK-Datei herunterladen
+            2. Auf dein Android-Gerät übertragen (z. B. via USB oder Cloud)
+            3. Einstellungen → Apps → "Unbekannte Quellen" erlauben
+            4. APK-Datei öffnen und installieren
 
             **Commit:** `${{ github.sha }}`
           files: app/build/outputs/apk/debug/Atemtrainer-${{ steps.version.outputs.version }}-debug.apk
