@@ -10,6 +10,9 @@ on:
         required: false
         default: ''
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build debug APK and publish release
@@ -67,7 +70,7 @@ jobs:
 
             ### Installation
             1. APK-Datei herunterladen
-            2. Auf dein Android-Gerät übertragen (z. B. via USB oder Cloud)
+            2. Auf dein Android-Gerät übertragen (z. B. via USB oder Cloud)
             3. Einstellungen → Apps → "Unbekannte Quellen" erlauben
             4. APK-Datei öffnen und installieren
 
