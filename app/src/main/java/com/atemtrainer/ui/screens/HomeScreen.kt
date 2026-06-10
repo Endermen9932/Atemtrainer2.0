@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    state: MainUiState,
+    state: MainUiState.Ready,
     onStartTraining: () -> Unit,
     onNavigateStats: () -> Unit,
     onNavigateSettings: () -> Unit,
@@ -58,11 +58,15 @@ fun HomeScreen(
             Spacer(Modifier.weight(1f))
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                ),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text("Heutiges Ziel", style = MaterialTheme.typography.titleMedium)
@@ -92,7 +96,9 @@ fun HomeScreen(
 
             Button(
                 onClick = onStartTraining,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -110,6 +116,7 @@ fun HomeScreen(
             }
 
             state.maxDuration?.let { max ->
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Persönlicher Rekord: ${formatDuration(max)}",
                     style = MaterialTheme.typography.bodySmall,
@@ -123,14 +130,24 @@ fun HomeScreen(
 }
 
 @Composable
-private fun IncreasePromptCard(currentSeconds: Int, onAccept: () -> Unit, onDismiss: () -> Unit) {
+private fun IncreasePromptCard(
+    currentSeconds: Int,
+    onAccept: () -> Unit,
+    onDismiss: () -> Unit
+) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.TrendingUp, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
+                Icon(
+                    Icons.Default.TrendingUp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary
+                )
                 Spacer(Modifier.width(8.dp))
                 Text("Steigerung bereit!", style = MaterialTheme.typography.titleSmall)
             }
@@ -140,7 +157,10 @@ private fun IncreasePromptCard(currentSeconds: Int, onAccept: () -> Unit, onDism
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(12.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
                 TextButton(onClick = onDismiss) { Text("Nicht jetzt") }
                 Spacer(Modifier.width(8.dp))
                 Button(onClick = onAccept) { Text("+5 Sekunden") }

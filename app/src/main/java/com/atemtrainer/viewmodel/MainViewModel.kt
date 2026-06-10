@@ -19,14 +19,17 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-data class MainUiState(
-    val onboardingDone: Boolean = false,
-    val baselineSeconds: Int = 30,
-    val currentTargetSeconds: Int = 30,
-    val showIncreasePrompt: Boolean = false,
-    val sessions: List<SessionEntity> = emptyList(),
-    val maxDuration: Int? = null,
-)
+sealed class MainUiState {
+    object Loading : MainUiState()
+    data class Ready(
+        val onboardingDone: Boolean,
+        val baselineSeconds: Int,
+        val currentTargetSeconds: Int,
+        val showIncreasePrompt: Boolean,
+        val sessions: List<SessionEntity>,
+        val maxDuration: Int?,
+    ) : MainUiState()
+}
 
 private data class PrefsSnapshot(
     val onboardingDone: Boolean,
@@ -69,7 +72,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 lastTrainingDay.isBefore(today) &&
                 increasePromptDay != today
 
-        MainUiState(
+        MainUiState.Ready(
             onboardingDone = snap.onboardingDone,
             baselineSeconds = snap.baseline,
             currentTargetSeconds = snap.target,
@@ -77,7 +80,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             sessions = sessions,
             maxDuration = maxDur,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MainUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MainUiState.Loading)
 
     fun completeOnboarding(baselineSeconds: Int) = viewModelScope.launch {
         prefs.setBaseline(baselineSeconds)
