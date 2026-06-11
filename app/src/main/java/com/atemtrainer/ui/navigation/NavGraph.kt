@@ -72,12 +72,21 @@ fun AppNavGraph() {
                 ) { backStack ->
                     val targetSeconds = backStack.arguments?.getInt("targetSeconds")
                         ?: state.currentTargetSeconds
+                    val isFirstSession = state.sessions.isEmpty()
                     val trainingVm: TrainingViewModel = viewModel()
                     TrainingScreen(
                         targetSeconds = targetSeconds,
+                        cueType = state.cueType,
+                        cueLeadSeconds = state.cueLeadSeconds,
+                        isFirstSession = isFirstSession,
+                        dimEnabled = state.dimEnabled,
+                        dimDelaySeconds = state.dimDelaySeconds,
                         viewModel = trainingVm,
-                        onDone = {
-                            mainVm.recordCompletedSession(targetSeconds)
+                        onDone = { achievedSeconds ->
+                            mainVm.recordCompletedSession(achievedSeconds)
+                            if (isFirstSession) {
+                                mainVm.applyMeasuredBaseline(achievedSeconds)
+                            }
                             navController.popBackStack()
                         },
                         onCancel = { navController.popBackStack() }
@@ -94,6 +103,7 @@ fun AppNavGraph() {
 
                 composable(Routes.SETTINGS) {
                     SettingsScreen(
+                        state = state,
                         viewModel = mainVm,
                         onBack = { navController.popBackStack() }
                     )
