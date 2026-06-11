@@ -1,17 +1,23 @@
 package com.atemtrainer.ui.screens
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.atemtrainer.viewmodel.TrainingPhase
@@ -22,18 +28,64 @@ import com.atemtrainer.viewmodel.TrainingViewModel
 @Composable
 fun TrainingScreen(
     targetSeconds: Int,
+    cueType: Int,
+    cueLeadSeconds: Int,
+    isFirstSession: Boolean,
+    dimEnabled: Boolean,
+    dimDelaySeconds: Int,
     viewModel: TrainingViewModel,
-    onDone: () -> Unit,
+    onDone: (Int) -> Unit,
     onCancel: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+    val window = (context as? Activity)?.window
+
+    // Keep screen on for the entire training session
+    DisposableEffect(Unit) {
+        window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            // Restore default brightness
+            window?.let { w ->
+                val attrs = w.attributes
+                attrs.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                w.attributes = attrs
+            }
+        }
+    }
+
+    // Dimming logic: user interaction resets the idle timer.
+    // LaunchedEffect must always be called (not inside an if) to respect Compose composition rules.
+    var interactionTick by remember { mutableIntStateOf(0) }
+    LaunchedEffect(interactionTick, dimEnabled) {
+        if (!dimEnabled) return@LaunchedEffect
+        // Restore brightness on any interaction
+        window?.let { w ->
+            val attrs = w.attributes
+            attrs.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            w.attributes = attrs
+        }
+        kotlinx.coroutines.delay(dimDelaySeconds * 1000L)
+        // Dim to a low but visible brightness
+        window?.let { w ->
+            val attrs = w.attributes
+            attrs.screenBrightness = 0.05f
+            w.attributes = attrs
+        }
+    }
 
     LaunchedEffect(Unit) {
-        viewModel.start(targetSeconds)
+        viewModel.start(
+            targetSeconds = targetSeconds,
+            cueType = cueType,
+            cueLeadSeconds = cueLeadSeconds,
+            firstSession = isFirstSession,
+        )
     }
 
     LaunchedEffect(state.phase) {
-        if (state.phase == TrainingPhase.DONE) onDone()
+        if (state.phase == TrainingPhase.DONE) onDone(viewModel.effectiveTargetSeconds)
     }
 
     Scaffold(
@@ -51,20 +103,38 @@ fun TrainingScreen(
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .then(
+                    if (dimEnabled) Modifier.pointerInput(Unit) {
+                        detectTapGestures { interactionTick++ }
+                    } else Modifier
+                )
         ) {
-            AnimatedContent(
-                targetState = state.phase,
-                transitionSpec = { fadeIn() togetherWith fadeOut() }
-            ) { phase ->
-                when (phase) {
-                    TrainingPhase.IDLE -> CircularProgressIndicator()
-                    TrainingPhase.HOLD -> HoldPhase(state)
-                    TrainingPhase.REST -> RestPhase(state)
-                    TrainingPhase.DONE -> DonePhase()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                AnimatedContent(
+                    targetState = state.phase,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() }
+                ) { phase ->
+                    when (phase) {
+                        TrainingPhase.IDLE -> CircularProgressIndicator()
+                        TrainingPhase.PREP -> PrepPhase(state)
+                        TrainingPhase.HOLD -> HoldPhase(
+                            state = state,
+                            showStopButton = isFirstSession && state.currentRound == 1,
+                            onStop = { viewModel.stopHoldEarly() }
+                        )
+                        TrainingPhase.REST -> RestPhase(state)
+                        TrainingPhase.DONE -> DonePhase()
+                    }
                 }
             }
         }
@@ -72,7 +142,52 @@ fun TrainingScreen(
 }
 
 @Composable
-private fun HoldPhase(state: TrainingState) {
+private fun PrepPhase(state: TrainingState) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = "Runde ${state.currentRound} / ${state.totalRounds}",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "Bereit machen…",
+            style = MaterialTheme.typography.headlineLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(32.dp))
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            modifier = Modifier.size(200.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = state.secondsLeft.toString(),
+                        style = MaterialTheme.typography.displayLarge,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    Text("Sek", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = "Jetzt einatmen und vorbereiten",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun HoldPhase(
+    state: TrainingState,
+    showStopButton: Boolean,
+    onStop: () -> Unit,
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
@@ -115,6 +230,19 @@ private fun HoldPhase(state: TrainingState) {
             progress = { 1f - state.secondsLeft.toFloat() / state.targetSeconds },
             modifier = Modifier.fillMaxWidth()
         )
+        if (showStopButton) {
+            Spacer(Modifier.height(24.dp))
+            OutlinedButton(
+                onClick = onStop,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Ich schaffe das Ziel nicht – Stopp")
+            }
+        }
     }
 }
 

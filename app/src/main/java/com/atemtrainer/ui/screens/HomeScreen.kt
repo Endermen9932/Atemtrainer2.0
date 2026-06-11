@@ -149,11 +149,11 @@ private fun IncreasePromptCard(
                     tint = MaterialTheme.colorScheme.secondary
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Steigerung bereit!", style = MaterialTheme.typography.titleSmall)
+                Text("Wochenfortschritt!", style = MaterialTheme.typography.titleSmall)
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "Möchtest du heute 5 Sekunden draufpacken? ${formatDuration(currentSeconds)} → ${formatDuration(currentSeconds + 5)}",
+                text = "Eine Woche trainiert – Zeit für die nächste Stufe! ${formatDuration(currentSeconds)} → ${formatDuration(currentSeconds + 5)}",
                 style = MaterialTheme.typography.bodyMedium
             )
             Spacer(Modifier.height(12.dp))
